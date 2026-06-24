@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  cloudreve:
+    image: cloudreve/cloudreve:latest
+    container_name: cloudreve
+    restart: unless-stopped
+    ports:
+      - "5212:5212"
+    volumes:
+      - ./uploads:/cloudreve/uploads
+      - ./conf:/cloudreve/conf
+      - ./data:/cloudreve/data
+      - ./avatar:/cloudreve/avatar
+    environment:
+      - TZ=Asia/Shanghai
