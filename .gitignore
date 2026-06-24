@@ -1,0 +1,15 @@
+# Uploaded files
+data/uploads/
+
+# Database (contains session secrets and user data)
+# data/cloudreve.db
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

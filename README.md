@@ -51,6 +51,8 @@ cloudreve/
 ├── docker-compose.yml     # Docker 编排文件
 ├── README.md              # 本文件
 ├── conf/                  # 配置文件备用目录（可忽略）
+├── docs/
+│   └── visitor-download.md # 游客下载功能配置指南
 ├── data/
 │   ├── cloudreve.db       # SQLite 数据库（用户、文件索引、设置）
 │   ├── conf.ini           # 主配置文件（SessionSecret、HashIDSalt）
@@ -87,6 +89,30 @@ services:
 | `conf/` | `/cloudreve/conf/` | 配置文件备用目录（当前配置文件在 `data/` 中） |
 | `uploads/` | `/cloudreve/uploads/` | 上传目录备用（当前上传文件存储在 `data/uploads/`） |
 | `avatar/` | `/cloudreve/avatar/` | 用户头像 |
+
+## 👤 游客直接下载（匿名访问）
+
+默认情况下 Cloudreve 需要登录才能下载分享的文件。本项目已配置 **Anonymous 游客组** 支持免登录下载。
+
+### 使用方式
+
+1. 登录 Cloudreve → 找到文件 → **右键 → 分享**
+2. 在分享设置中：
+   - ✅ 开启 **允许下载**
+   - ❌ 关闭 **提取码**（可选，免密码更方便）
+3. 把生成的链接发给任何人，打开即可 **直接下载**，无需登录
+
+### 技术原理
+
+通过修改游客组的权限位（Boolset），启用了以下权限：
+
+| 权限 | 说明 |
+|------|------|
+| `bit 1` | 匿名用户组标识 |
+| `bit 7` | 允许下载他人分享的文件 |
+| `bit 8` | 免费下载（不计入流量/积分） |
+
+详细配置说明见 [docs/visitor-download.md](docs/visitor-download.md)。
 
 ## 🔧 常用命令
 
