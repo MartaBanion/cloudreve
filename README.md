@@ -24,6 +24,73 @@
 
 > 💡 `latest` 标签指向 Cloudreve 最新稳定版。如需固定版本，可在 `docker-compose.yml` 中改为具体版本号（如 `cloudreve/cloudreve:4.0.0`）。
 
+### 安装 Docker 和 Docker Compose
+
+如果新机器尚未安装 Docker，按以下步骤操作。
+
+#### Ubuntu / Debian
+
+```bash
+# 卸载旧版本
+sudo apt remove docker docker-engine docker.io containerd runc
+
+# 安装依赖
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg
+
+# 添加 Docker 官方 GPG 密钥和源
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
+
+# 安装 Docker
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# 启动并设置开机自启
+sudo systemctl enable docker --now
+
+# （可选）将当前用户加入 docker 组，避免每次用 sudo
+sudo usermod -aG docker $USER
+# 注意：重新登录后生效，或执行 newgrp docker
+```
+
+#### CentOS / RHEL / Alibaba Cloud Linux
+
+```bash
+# 卸载旧版本
+sudo yum remove docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine
+
+# 安装依赖
+sudo yum install -y yum-utils
+
+# 添加 Docker 源
+sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+# 安装 Docker
+sudo yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# 启动并设置开机自启
+sudo systemctl enable docker --now
+```
+
+#### 验证安装
+
+```bash
+# 检查 Docker 版本
+docker --version
+# 输出示例：Docker version 26.1.3, build b72abbb
+
+# 检查 Docker Compose 版本
+docker compose version
+# 输出示例：Docker Compose version v2.27.0
+
+# 测试容器运行
+docker run hello-world
+```
+
+> **提示**：如果 `docker compose` 命令不可用，请确认 `docker-compose-plugin` 已正确安装。旧版系统可能需要单独安装 `docker-compose`（Python 版），但建议使用 `docker compose`（v2 插件版）。
+
 ## 🚀 快速开始
 
 ### 1. 克隆项目
