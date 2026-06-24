@@ -109,3 +109,115 @@ Expected output:
 - Share links generated before enabling these permissions may not work — **re-generate** share links after making changes.
 - Ensure your server firewall allows inbound connections on the Cloudreve port (default: `5212`).
 - For production deployments, consider adding rate limiting to prevent abuse of public download links.
+
+## Troubleshooting
+
+<details>
+<summary><b>🔗 Share link shows localhost instead of my server IP</b></summary>
+
+**Cause:** The `siteURL` setting still points to `localhost`.
+
+**Fix:**
+```sql
+UPDATE settings
+SET value = 'http://your-actual-ip:5212',
+    updated_at = datetime('now')
+WHERE name = 'siteURL';
+```
+
+Then restart the container:
+```bash
+docker compose restart
+```
+</details>
+
+<details>
+<summary><b>🚫 Share page shows preview but no download button</b></summary>
+
+**Possible causes and fixes:**
+
+1. **Share dialog didn't enable download** — Re-share the file and check ✅ **Allow Download** in the share settings.
+
+2. **Database permissions not applied** — Verify the Anonymous group permissions:
+   ```sql
+   SELECT id, name, hex(permissions) FROM groups WHERE id = 3;
+   ```
+   Expected: `3|Anonymous|8201`
+   
+   If not, apply the fix:
+   ```sql
+   UPDATE groups SET permissions = x'8201', updated_at = datetime('now') WHERE id = 3;
+   ```
+
+3. **Container needs restart** after database change:
+   ```bash
+   docker compose restart
+   ```
+</details>
+
+<details>
+<summary><b>🔒 Visitors are prompted for a password when opening the share link</b></summary>
+
+**Cause:** The share was created with an **Extraction Code** (password) enabled.
+
+**Fix:** Re-create the share link and disable the password option:
+1. Right-click file → **Share**
+2. Uncheck **Extraction Code** / **Password**
+3. Generate a new link
+</details>
+
+<details>
+<summary><b>❌ Share link returns 404 or "Share not found"</b></summary>
+
+**Possible causes:**
+
+1. **Share link expired** — Check the share's expiration setting. Re-create with a longer or no expiration.
+
+2. **Database was reset** — If the database was replaced, old share links are invalid. Create new shares.
+
+3. **Container restarted and temporary state lost** — Shares are stored in the database, so restarting shouldn't affect them. If the database volume isn't properly mounted, data may be lost.
+
+4. **File was deleted** — The shared file no longer exists. Share links cannot work without the source file.
+</details>
+
+<details>
+<summary><b>🔑 "Administrator has restricted downloading" error</b></summary>
+
+**Cause:** The Anonymous group lacks the "free download" permission (bit 8), and your site requires payment/points for downloads.
+
+**Fix:** Enable free download for the Anonymous group:
+```sql
+-- Byte 0: 0x82 (bits 1 + 7), Byte 1: 0x01 (bit 8)
+UPDATE groups SET permissions = x'8201', updated_at = datetime('now') WHERE id = 3;
+```
+</details>
+
+<details>
+<summary><b>🌐 External users cannot access the server at all</b></summary>
+
+**Check the following:**
+
+1. **Firewall** on the server:
+   ```bash
+   # Check if port is open
+   ss -tlnp | grep 5212
+   
+   # CentOS/RHEL: open firewall
+   sudo firewall-cmd --add-port=5212/tcp --permanent
+   sudo firewall-cmd --reload
+   ```
+
+2. **Cloud security group** — Log in to your cloud provider (Alibaba Cloud, Tencent Cloud, AWS, etc.) and ensure port **5212** is allowed in the security group inbound rules.
+
+3. **Docker port mapping** — Verify the container is publishing the port:
+   ```bash
+   docker ps | grep cloudreve
+   # Should show: 0.0.0.0:5212->5212/tcp
+   ```
+
+4. **Server binds to all interfaces** — Check `data/conf.ini`:
+   ```ini
+   [System]
+   Listen = :5212    # Must be :5212, not 127.0.0.1:5212
+   ```
+</details>

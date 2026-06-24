@@ -91,6 +91,218 @@ docker run hello-world
 
 > **提示**：如果 `docker compose` 命令不可用，请确认 `docker-compose-plugin` 已正确安装。旧版系统可能需要单独安装 `docker-compose`（Python 版），但建议使用 `docker compose`（v2 插件版）。
 
+### 安装常见问题
+
+<details>
+<summary><b>❌ bash: git: command not found</b></summary>
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y git
+
+# CentOS/RHEL
+sudo yum install -y git
+```
+</details>
+
+<details>
+<summary><b>❌ curl: command not found</b></summary>
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y curl
+
+# CentOS/RHEL
+sudo yum install -y curl
+```
+</details>
+
+<details>
+<summary><b>❌ lsb_release: command not found（Ubuntu 添加 Docker 源时）</b></summary>
+
+```bash
+sudo apt install -y lsb-release
+```
+
+如果仍报错，直接用系统代号替换 `$(lsb_release -cs)`：
+```bash
+# 查看当前 Ubuntu 版本
+cat /etc/os-release
+# 例如 Ubuntu 22.04 则直接写 jammy，20.04 写 focal
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" | sudo tee /etc/apt/sources.list.d/docker.list
+```
+</details>
+
+<details>
+<summary><b>❌ yum-config-manager: command not found（CentOS）</b></summary>
+
+```bash
+sudo yum install -y yum-utils
+```
+</details>
+
+<details>
+<summary><b>❌ Package docker-ce conflicts with podman（CentOS/RHEL）</b></summary>
+
+部分 CentOS/RHEL 8+ 预装了 `podman` 和 `buildah`，与 Docker 冲突。先移除它们：
+
+```bash
+sudo yum remove -y podman buildah runc
+# 然后重新安装 Docker
+sudo yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+```
+</details>
+
+<details>
+<summary><b>❌ Cannot connect to the Docker daemon</b></summary>
+
+Docker 服务未启动：
+
+```bash
+# 查看 Docker 服务状态
+sudo systemctl status docker
+
+# 如果未运行，手动启动
+sudo systemctl start docker
+
+# 设置开机自启
+sudo systemctl enable docker
+
+# 如果启动失败，查看详细日志
+sudo journalctl -u docker --no-pager -n 50
+```
+</details>
+
+<details>
+<summary><b>❌ docker: permission denied — 非 root 用户运行 Docker</b></summary>
+
+当前用户不在 `docker` 用户组：
+
+```bash
+# 将当前用户加入 docker 组
+sudo usermod -aG docker $USER
+
+# 使组变更立即生效（二选一）
+newgrp docker          # 当前终端生效
+# 或 退出重新登录 SSH
+
+# 验证
+docker ps
+```
+</details>
+
+<details>
+<summary><b>❌ docker compose: command not found</b></summary>
+
+Docker Compose v2 插件未安装：
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y docker-compose-plugin
+
+# CentOS/RHEL
+sudo yum install -y docker-compose-plugin
+```
+
+如果无法安装插件，可安装独立版：
+```bash
+# 下载 v2.27.0 （替换为最新版本号）
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+# 验证
+docker-compose --version
+```
+</details>
+
+<details>
+<summary><b>❌ docker run hello-world 失败 — 无法拉取镜像</b></summary>
+
+网络问题导致 Docker Hub 无法访问（国内常见）：
+
+```bash
+# 配置国内镜像加速器
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<-'EOF'
+{
+  "registry-mirrors": [
+    "https://docker.1ms.run",
+    "https://docker.xuanyuan.me",
+    "https://hub.rat.dev"
+  ]
+}
+EOF
+
+# 重启 Docker
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+# 再次测试
+docker run hello-world
+```
+
+> 镜像加速器地址可能随政策变化，建议搜索最新的国内可用地址。
+</details>
+
+<details>
+<summary><b>❌ 容器启动后立即退出（Cloudreve 无法启动）</b></summary>
+
+```bash
+# 查看容器日志
+docker compose logs
+
+# 常见原因 1：data 目录权限问题
+sudo chown -R 1000:1000 data/
+
+# 常见原因 2：数据库文件损坏 — 检查 data/cloudreve.db 是否存在且非空
+ls -lh data/cloudreve.db
+
+# 常见原因 3：conf.ini 中 SessionSecret 为空
+cat data/conf.ini
+```
+</details>
+
+<details>
+<summary><b>❌ 浏览器无法访问 http://服务器IP:5212</b></summary>
+
+```bash
+# 1. 检查容器是否在运行
+docker ps | grep cloudreve
+
+# 2. 检查端口是否监听
+ss -tlnp | grep 5212
+
+# 3. 检查防火墙（CentOS/RHEL）
+sudo systemctl status firewalld
+sudo firewall-cmd --list-ports
+# 放行 5212 端口
+sudo firewall-cmd --add-port=5212/tcp --permanent
+sudo firewall-cmd --reload
+
+# 4. 检查云服务商安全组（阿里云/腾讯云/AWS 等）
+# ⇒ 登录云控制台，在安全组/防火墙规则中放行 5212 端口（TCP）
+```
+</details>
+
+<details>
+<summary><b>❌ 忘记管理员密码</b></summary>
+
+```bash
+# 方法一：查看首次部署时的默认密码
+docker compose exec cloudreve /cloudreve --initial-password
+
+# 方法二：通过 SQLite 直接重置密码
+# 安装 sqlite3 工具
+sudo apt install -y sqlite3   # Ubuntu/Debian
+sudo yum install -y sqlite    # CentOS/RHEL
+
+# 重置 admin 密码为 123456
+sqlite3 data/cloudreve.db "UPDATE users SET password='\$2a\$10\$lC6cXJ5C5vY5V.PE5oXh/Owj0p5cZ0YqQ0L3Q1F0z0Z0X0Y0Z0X0Y0Z0X0Y0Z' WHERE id=1;"
+```
+
+> 重置后请立即登录修改密码。
+</details>
+
 ## 🚀 快速开始
 
 ### 1. 克隆项目
