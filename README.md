@@ -4,9 +4,25 @@
 
 ## 📋 环境要求
 
-- 已安装 [Docker](https://docs.docker.com/engine/install/) >= 20.x
-- 已安装 [Docker Compose](https://docs.docker.com/compose/install/) >= 2.x
-- 至少 512MB 内存
+### 系统依赖
+
+| 组件 | 最低版本 | 推荐版本 | 本机测试版本 |
+|------|---------|---------|------------|
+| [Docker](https://docs.docker.com/engine/install/) | `20.x` | `24.x+` | `26.1.3` |
+| [Docker Compose](https://docs.docker.com/compose/install/) | `2.x` | `2.20+` | `2.27.0` |
+| 操作系统 | Linux x86_64 | Linux x86_64 | Alibaba Cloud Linux 3 |
+| 内存 | 512MB | 1GB+ | - |
+
+> **架构支持**：本仓库基于 `linux/amd64`（x86_64）测试。ARM64（如树莓派、Apple Silicon Mac）理论上可用，但未测试。
+
+### Cloudreve 版本
+
+| 组件 | 版本 |
+|------|------|
+| Cloudreve 镜像 | `cloudreve/cloudreve:latest`（测试于 2026-06-06 构建） |
+| 数据库 | SQLite（内置，无需额外安装） |
+
+> 💡 `latest` 标签指向 Cloudreve 最新稳定版。如需固定版本，可在 `docker-compose.yml` 中改为具体版本号（如 `cloudreve/cloudreve:4.0.0`）。
 
 ## 🚀 快速开始
 
