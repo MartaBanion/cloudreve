@@ -1,101 +1,104 @@
-# Anonymous Visitor Download Setup
+# 游客下载功能配置指南
 
-Enable file download for unauthenticated (guest/visitor) users in Cloudreve.
+允许未登录的匿名用户直接下载 Cloudreve 分享的文件。
 
-## Overview
+## 概述
 
-By default, Cloudreve requires users to log in before they can download shared files. This guide explains how to configure the **Anonymous** user group so that visitors can download files directly from share links without any login.
+默认情况下，Cloudreve 要求接收方登录后才能下载分享的文件。通过配置 **Anonymous（游客）** 用户组的权限，访客可以直接打开分享链接下载文件，无需任何登录操作。
 
-## How It Works
+## 原理
 
-Cloudreve uses a **Boolset** (bitmask-based permission) system for user groups. The Anonymous group controls what unauthenticated visitors can do. By setting the correct permission bits, you grant download capabilities to anyone with a share link.
+Cloudreve 使用 **Boolset**（基于位掩码的权限编码）来控制用户组的权限。每个位（bit）代表一个权限开关。游客组的权限决定了未登录访客能做什么。
 
-## Permission Bits
+## 权限位说明
 
-For the **User Group** permission scope, the relevant bits are:
+**用户组权限**的位定义如下：
 
-| Bit | Description | Required? |
-|-----|-------------|-----------|
-| 0   | Is administrator | ❌ |
-| 1   | Is anonymous user group | ✅ (must be set for guest users) |
-| 2   | Can share files | ❌ |
-| 3   | Can access WebDAV | ❌ |
-| 4   | Can perform server-side batch download | Optional |
-| 5   | Can execute archive compression tasks | Optional |
-| 6   | Can enable WebDAV proxy | ❌ |
-| 7   | Can download shares from others | ✅ **Required for download** |
-| 8   | Can download shares for free | ✅ **Recommended** (bypasses credit/point cost) |
-| 9   | Can perform remote downloads | ❌ |
-| 10  | Can transfer storage policy | ❌ |
-| 11  | Use redirected source link | Optional |
+| 位 | 说明 | 是否必须 |
+|----|------|---------|
+| 0  | 是否为管理员 | ❌ |
+| 1  | 是否为匿名用户组 | ✅（游客组必须开启） |
+| 2  | 是否可以分享文件 | ❌ |
+| 3  | 是否可以访问 WebDAV | ❌ |
+| 4  | 是否可以服务端打包下载 | 可选 |
+| 5  | 是否可以执行归档压缩任务 | 可选 |
+| 6  | 是否可以开启 WebDAV 代理 | ❌ |
+| 7  | **是否可以下载他人分享** | ✅ **必须开启** |
+| 8  | **是否可以免费下载分享** | ✅ **推荐开启**（跳过积分/流量扣费） |
+| 9  | 是否可以离线下载 | ❌ |
+| 10 | 是否可以转移存储策略 | ❌ |
+| 11 | 是否使用重定向直链 | 可选 |
 
-## Database Setup
+## 数据库配置
 
-Execute the following SQL to set appropriate permissions for the Anonymous group:
+执行以下 SQL 为游客组设置合适的权限：
 
 ```sql
--- Enable: anonymous flag (bit 1) + download shares (bit 7) + free download (bit 8)
--- Byte 0: 0x82 (bits 1 and 7)
--- Byte 1: 0x01 (bit 8)
+-- 开启：匿名标识(bit 1) + 下载分享(bit 7) + 免费下载(bit 8)
+-- 字节 0: 0x82（位 1 和 7）
+-- 字节 1: 0x01（位 8）
 UPDATE groups
 SET permissions = x'8201',
     updated_at  = datetime('now')
 WHERE id = 3;
 ```
 
-This translates to:
-- `0x82` → `10000010` → Bits 1 (anonymous) + 7 (download shares) enabled
-- `0x01` → `00000001` → Bit 8 (free download) enabled
+翻译成二进制：
+- `0x82` → `10000010` → 位 1（匿名组）+ 位 7（下载分享）已开启
+- `0x01` → `00000001` → 位 8（免费下载）已开启
 
-## Site URL Configuration
+## 站点 URL 配置
 
-Cloudreve must know its public-facing URL to generate correct share links.
+Cloudreve 需要知道自己的公网地址，才能生成正确的分享链接。
 
-### Via Database
+### 通过数据库修改
 
 ```sql
 UPDATE settings
-SET value = 'http://your-public-ip:5212',
+SET value = 'http://你的公网IP:5212',
     updated_at = datetime('now')
 WHERE name = 'siteURL';
 ```
 
-### Via Config File (`conf.ini`)
+### 通过配置文件修改（`data/conf.ini`）
 
 ```ini
 [System]
-SiteURL = http://your-public-ip:5212
+SiteURL = http://你的公网IP:5212
 ```
 
-> **Important:** Replace `your-public-ip` with your actual server IP or domain name. If the `SiteURL` is set to `localhost`, generated share links will not work for external users.
+> ⚠️ 如果 `SiteURL` 设为 `localhost`，生成的分享链接他人无法访问。
 
-## User-Facing Steps
+## 用户操作步骤
 
-Once permissions and site URL are configured:
+权限和站点 URL 配置完成后：
 
-1. **Upload a file** to Cloudreve
-2. **Right-click** the file → **Share**
-3. In the share dialog:
-   - ✅ Enable **Allow Download**
-   - ❌ Disable **Extraction Code** (password) for direct access
-   - Set expiration as needed
-4. **Copy the share link** (format: `http://your-server:5212/s/xxxxx`)
-5. Anyone with this link can **view and download** the file without logging in
+1. 登录 Cloudreve → 上传文件
+2. **右键**文件 → **分享**
+3. 在分享对话框中：
+   - ✅ 开启 **允许下载**
+   - ❌ 关闭 **提取码**（免密码直接访问）
+   - 设置过期时间（按需）
+4. 复制分享链接
 
-## Verification
+**分享链接示例：**
+```
+http://8.160.178.239:5212/s/AbCdEf
+```
+打开这个链接即可直接预览和下载文件，无需登录。
 
-To verify the setup works:
+## 验证方法
 
-1. Open the share link in an **incognito/private browser window**
-2. You should see the file preview page
-3. Click the download button — the file should download without prompting for login
-4. Run the following SQL to check permissions:
+1. 在**无痕/隐私浏览器窗口**中打开分享链接
+2. 应该能看到文件预览页面
+3. 点击下载按钮——文件应直接下载，不会弹出登录提示
+4. 运行以下 SQL 检查权限：
 
 ```sql
 SELECT id, name, hex(permissions) FROM groups;
 ```
 
-Expected output:
+预期输出：
 
 ```
 1|Admin|FD1A01
@@ -103,121 +106,133 @@ Expected output:
 3|Anonymous|8201
 ```
 
-## Notes
+## 安全建议
 
-- The Anonymous group permission changes take effect **immediately** after database update (no server restart required if using SQLite in most cases, though a restart ensures consistency).
-- Share links generated before enabling these permissions may not work — **re-generate** share links after making changes.
-- Ensure your server firewall allows inbound connections on the Cloudreve port (default: `5212`).
-- For production deployments, consider adding rate limiting to prevent abuse of public download links.
+### 防止链接被滥用
 
-## Troubleshooting
+公开分享链接意味着任何知道链接的人都能访问。建议：
+
+1. **设置过期时间** — 分享时设定合理的过期时间（如 24 小时或 7 天）
+2. **限制下载次数** — 可设置"剩余下载次数"，达到次数后自动失效
+3. **启用提取码** — 如果分享敏感文件，开启提取码，只有知晓密码的人能打开
+4. **定期清理** — 不再需要分享时，在 Cloudreve 中删除对应分享记录
+
+### 服务器防护
+
+```bash
+# 1. 配置防火墙，只放行必要端口
+sudo firewall-cmd --add-port=5212/tcp --permanent
+sudo firewall-cmd --reload
+
+# 2. 配置 Nginx 反代 + HTTPS（详见 README）
+# 3. 监控访问日志，发现异常 IP 及时封禁
+```
+
+## 注意事项
+
+- 修改游客组权限后通常**立即生效**，无需重启容器（但重启更保险）
+- **之前生成的分享链接**可能不会自动获得新权限——建议重新生成
+- 确保服务器防火墙开放了 Cloudreve 端口（默认 `5212`）
+- 如果站点开启了"下载扣积分"功能，必须开启位 8（免费下载），否则游客会报错
+
+## 排错指南
 
 <details>
-<summary><b>🔗 Share link shows localhost instead of my server IP</b></summary>
+<summary><b>🔗 分享链接显示 localhost</b></summary>
 
-**Cause:** The `siteURL` setting still points to `localhost`.
+**原因：** `siteURL` 仍指向 `localhost`。
 
-**Fix:**
+**解决方法：**
 ```sql
 UPDATE settings
-SET value = 'http://your-actual-ip:5212',
+SET value = 'http://你的实际IP:5212',
     updated_at = datetime('now')
 WHERE name = 'siteURL';
 ```
 
-Then restart the container:
+然后重启容器：
 ```bash
 docker compose restart
 ```
 </details>
 
 <details>
-<summary><b>🚫 Share page shows preview but no download button</b></summary>
+<summary><b>🚫 分享页只能预览，没有下载按钮</b></summary>
 
-**Possible causes and fixes:**
+**可能原因及解决方法：**
 
-1. **Share dialog didn't enable download** — Re-share the file and check ✅ **Allow Download** in the share settings.
+1. **分享时没开启下载** — 重新分享文件，勾选 ✅ **允许下载**
 
-2. **Database permissions not applied** — Verify the Anonymous group permissions:
+2. **数据库权限未生效** — 检查游客组权限：
    ```sql
    SELECT id, name, hex(permissions) FROM groups WHERE id = 3;
    ```
-   Expected: `3|Anonymous|8201`
+   预期结果：`3|Anonymous|8201`
    
-   If not, apply the fix:
+   如果不是，执行修复：
    ```sql
    UPDATE groups SET permissions = x'8201', updated_at = datetime('now') WHERE id = 3;
    ```
 
-3. **Container needs restart** after database change:
+3. **需要重启容器**：
    ```bash
    docker compose restart
    ```
 </details>
 
 <details>
-<summary><b>🔒 Visitors are prompted for a password when opening the share link</b></summary>
+<summary><b>🔒 访客打开链接要求输入密码</b></summary>
 
-**Cause:** The share was created with an **Extraction Code** (password) enabled.
+**原因：** 创建分享时开启了**提取码**。
 
-**Fix:** Re-create the share link and disable the password option:
-1. Right-click file → **Share**
-2. Uncheck **Extraction Code** / **Password**
-3. Generate a new link
+**解决方法：** 重新生成分享链接，关闭提取码开关。
 </details>
 
 <details>
-<summary><b>❌ Share link returns 404 or "Share not found"</b></summary>
+<summary><b>❌ 分享链接 404 或"分享不存在"</b></summary>
 
-**Possible causes:**
+**可能原因：**
 
-1. **Share link expired** — Check the share's expiration setting. Re-create with a longer or no expiration.
-
-2. **Database was reset** — If the database was replaced, old share links are invalid. Create new shares.
-
-3. **Container restarted and temporary state lost** — Shares are stored in the database, so restarting shouldn't affect them. If the database volume isn't properly mounted, data may be lost.
-
-4. **File was deleted** — The shared file no longer exists. Share links cannot work without the source file.
+1. **链接已过期** — 重新创建分享，设置更长的有效期或不限时
+2. **数据库被重置** — 旧分享链接全部失效，需重新创建
+3. **源文件被删除** — 分享的文件已不存在
 </details>
 
 <details>
-<summary><b>🔑 "Administrator has restricted downloading" error</b></summary>
+<summary><b>🔑 提示"管理员限制下载"</b></summary>
 
-**Cause:** The Anonymous group lacks the "free download" permission (bit 8), and your site requires payment/points for downloads.
+**原因：** 游客组缺少"免费下载"权限（位 8），而站点开启了积分扣费。
 
-**Fix:** Enable free download for the Anonymous group:
+**解决方法：** 为游客组开启位 8：
 ```sql
--- Byte 0: 0x82 (bits 1 + 7), Byte 1: 0x01 (bit 8)
 UPDATE groups SET permissions = x'8201', updated_at = datetime('now') WHERE id = 3;
 ```
 </details>
 
 <details>
-<summary><b>🌐 External users cannot access the server at all</b></summary>
+<summary><b>🌐 外网无法访问服务器</b></summary>
 
-**Check the following:**
+**按顺序检查以下项目：**
 
-1. **Firewall** on the server:
+1. **服务器防火墙**：
    ```bash
-   # Check if port is open
    ss -tlnp | grep 5212
-   
-   # CentOS/RHEL: open firewall
+   # CentOS/RHEL 放行端口
    sudo firewall-cmd --add-port=5212/tcp --permanent
    sudo firewall-cmd --reload
    ```
 
-2. **Cloud security group** — Log in to your cloud provider (Alibaba Cloud, Tencent Cloud, AWS, etc.) and ensure port **5212** is allowed in the security group inbound rules.
+2. **云服务商安全组** — 登录阿里云/腾讯云/AWS 等控制台，在安全组入方向放行端口 5212
 
-3. **Docker port mapping** — Verify the container is publishing the port:
+3. **Docker 端口映射**：
    ```bash
    docker ps | grep cloudreve
-   # Should show: 0.0.0.0:5212->5212/tcp
+   # 应显示：0.0.0.0:5212->5212/tcp
    ```
 
-4. **Server binds to all interfaces** — Check `data/conf.ini`:
+4. **Cloudreve 监听地址** — 检查 `data/conf.ini`：
    ```ini
    [System]
-   Listen = :5212    # Must be :5212, not 127.0.0.1:5212
+   Listen = :5212    # 必须是 :5212，不是 127.0.0.1:5212
    ```
 </details>
